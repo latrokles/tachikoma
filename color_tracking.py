@@ -21,6 +21,7 @@ PORT       = '/dev/ttyUSB0'
 SIZE       = WIDTH, HEIGHT = 320, 240
 CENTER     = CX, CY = WIDTH / 2, HEIGHT / 2
 MIN_OFFSET = 20 # defines a range for the robot's center view
+FWD_SPEED  = 0
 
 def main():
     camera = cv.CaptureFromCam(0)
@@ -44,7 +45,7 @@ def main():
             else:
                 turn_rate = (distance / WIDTH) * 60 # need to define this better
 
-            max.go(FORWARD_SPEED, turn_rate)
+            max.go(FWD_SPEED, turn_rate)
             time.wait(1)
 
 
