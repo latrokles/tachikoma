@@ -20,13 +20,12 @@ Implement simple color tracking, robot turns around to keep track of the object
 PORT       = '/dev/ttyUSB0'
 SIZE       = WIDTH, HEIGHT = 320, 240
 CENTER     = CX, CY = WIDTH / 2, HEIGHT / 2
-MIN_OFFSET = 20 # defines a range for the robot's center view
+MIN_OFFSET = 50 # defines a range for the robot's center view
 FWD_SPEED  = 0
 
 def main():
     camera = cv.CaptureFromCAM(0)
     max    = create.Create(PORT)
-
     try:
         # create a smaller image to resize the original frame into
         frame = cv.QueryFrame(camera)
@@ -38,25 +37,24 @@ def main():
             target_x, target_y = get_object_position(small)
 
             # determine how far off is the robot's heading from the target
+            print '(CX, target_x) : ', (CX, target_x)
             distance = CX - target_x
 
+            # turn rate should be better defined
             if math.fabs(distance) < MIN_OFFSET:
                 turn_rate = 0
             else:
-                turn_rate = (distance / WIDTH) * 60 # need to define this better
-
+                turn_rate = (float(distance) / WIDTH) * 60
             max.go(FWD_SPEED, turn_rate)
-            time.wait(1)
-
-
     except KeyboardInterrupt:
         print 'leaving now...'
     finally:
-        print 'Stop robot'
-        print 'Close robot'
+        print 'Stopping robot...'
+        print 'Shutting down robot..'
+        print 'Bye!'
         max.stop()
         max.close()
-        sys.exit(1)
+        sys.exit(0)
 
 def get_object_position(img):
     '''
@@ -71,10 +69,15 @@ def get_rect_pos(bounding_rect):
     '''
     Takes a rectangle and returns it's center position as a (x, y) tuple
     '''
-    corner_x, corner_y = bounding_rect[0], bounding_rect[1]
-    width, height      = bounding_rect[2], bounding_rect[3]
-    x = (corner_x + width) / 2
-    y = (corner_y + height) / 2
+    # if bounding rect has no size == 0, then position is on center
+    # something tells me this should be elsewhere though
+    if bounding_rect == (0, 0, 0, 0):
+        x, y = CX, CY
+    else:
+        corner_x, corner_y = bounding_rect[0], bounding_rect[1]
+        width, height      = bounding_rect[2], bounding_rect[3]
+        x = corner_x + (width / 2)
+        y = corner_y + (height / 2)
     return x, y
 
 def get_bounding_box(img):
@@ -84,7 +87,7 @@ def get_bounding_box(img):
     but that will change when I do contour detection.
     '''
     matrix = cv.GetMat(img)
-    bounding_box = cv.BoundindRect(matrix)
+    bounding_box = cv.BoundingRect(matrix)
     return bounding_box
 
 def detect_red(img):
@@ -103,7 +106,7 @@ def detect_red(img):
     cv.Sub(red, green, red)
 
     # apply the threshold to img
-    cv.Threshold(red, red, 100, 255, cv.THRESH_BINARY)
+    cv.Threshold(red, red, 50, 255, cv.CV_THRESH_BINARY)
     return red
 
 if __name__ == '__main__':
