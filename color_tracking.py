@@ -24,7 +24,7 @@ MIN_OFFSET = 20 # defines a range for the robot's center view
 FWD_SPEED  = 0
 
 def main():
-    camera = cv.CaptureFromCam(0)
+    camera = cv.CaptureFromCAM(0)
     max    = create.Create(PORT)
 
     try:
