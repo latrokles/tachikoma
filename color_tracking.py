@@ -2,6 +2,7 @@
 #
 #
 
+import sys
 try:
     from ros_path import python_path
     sys.path += python_path
@@ -9,7 +10,6 @@ except ImportError:
     print 'ROS is not installed on this machine...'
 import create
 import cv
-import sys
 import math
 import time
 
