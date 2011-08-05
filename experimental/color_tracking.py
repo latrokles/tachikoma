@@ -13,7 +13,6 @@ import cv
 import math
 import time
 
-#simple test
 '''
 Implement simple color tracking, robot turns around to keep track of the object
 '''
