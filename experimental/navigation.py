@@ -5,7 +5,7 @@ import tachikoma
 
 def bump_navigation(robot):
     while True:
-        robot.forward(50)
+        robot.forward(30)
         robot.check_collisions()
         robot.avoid_collisions()
 
