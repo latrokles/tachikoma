@@ -8,6 +8,13 @@ import cv
 import time
 
 PORT = '/dev/ttyUSB0'
+
+# directions for bumper
+FRONT = 0
+BACK  = 1
+LEFT  = 2
+RIGHT = 3
+
 class Tachikoma(object):
     '''
     The robot!
@@ -19,8 +26,9 @@ class Tachikoma(object):
         '''
         self.bot       = create.Create(port)
         self.stopped   = True
-        self.obstacles = {'LEFT':0, 'RIGHT':0} # track previous obstacles
-        self.last_seen = 0                   # track time of last obstacle
+        self.curr_obstacle  = None  # current obstacle
+        self.last_direction = None  # track the last direction we took
+        self.last_seen      = 0     # track time of last obstacle
 
     def forward(self, speed):
         '''
@@ -43,7 +51,7 @@ class Tachikoma(object):
         '''
         # moving to the right needs negative value for degrees
         if direction == 'RIGHT': degrees = -degrees
-        if direction == 'BACK': degrees = 180
+        if direction == 'BACK':  degrees = random.randint(90, 270)
         speed = degrees * 2
         self.bot.turn(degrees, speed)
 
@@ -69,35 +77,44 @@ class Tachikoma(object):
         '''
         sensors = self.bot.sensors([create.LEFT_BUMP, create.RIGHT_BUMP])
         if sensors[create.LEFT_BUMP] == 1 and sensors[create.RIGHT_BUMP] == 0:
-            self.obstacles['LEFT']  += 1
+            self.curr_obstacle = LEFT
             self.last_seen = time.time()
         elif sensors[create.RIGHT_BUMP] == 1 and sensors[create.LEFT_BUMP] == 0:
-            self.obstacles['RIGHT'] += 1
+            self.curr_obstacle = RIGHT
             self.last_seen = time.time()
-        elif sensors[create.RIGHT_BUMP] ==1 and sensors[create.LEFT_BUMP] == 1:
-            self.obstacles['BACK']  += 1
+        elif sensors[create.RIGHT_BUMP] == 1 and sensors[create.LEFT_BUMP] == 1:
+            self.curr_obstacle = FRONT
             self.last_seen = time.time()
 
     def avoid_collisions(self):
         '''
         Back away and turn in direction.
         '''
+        direction = None
         now = time.time()
-        if now - self.last_seen > 3:
-            self.obstacles['BACK']  = 0
-            self.obstacles['LEFT']  = 0
-            self.obstacles['RIGHT'] = 0
+        if now - self.last_seen > 2:
+            self.last_direction = None
 
-        if self.obstacles['BACK'] or self.obstacles['LEFT'] or self.obstacles['RIGHT']:
-            # there's an obstacle, turn to where there are the least amount of obstacles
-            min_hits  = 10000
-            way_to_go = None
-            for direction, hits in self.obstacles.items():
-                if hits < min_hits:
-                    way_to_go = direction
-            self.backward(30)
+        # set the direction we will go based on the obstacle we went in
+        if self.curr_obstacle == LEFT:
+            direction = 'RIGHT'
+        elif self.curr_obstacle == RIGHT:
+            direction = 'LEFT'
+        elif self.curr_obstacle == FRONT:
+            direction = 'BACK'
+        # but... if we were moving in some direction before, continue going
+        # that way
+        if self.last_direction is not None:
+            direction = self.last_direction
+
+        # if there's some direction to turn, let's go
+        if direction:
+            self.last_direction = direction # set the last direction we went in
+            self.stop()                     # stop
+            self.backward(30)               # back away from obstacle
             time.sleep(0.5)
-            self.turn(way_to_go, 30)
+            self.turn(direction, 30)        # turn in the direction
+            self.curr_obstacle = None       # clear the obstacle
 
     def run(self, behavior):
         '''
@@ -109,4 +126,5 @@ class Tachikoma(object):
         except KeyboardInterrupt:
             print('Finishing execution...')
         finally:
+            print('Shutting down robot...')
             self.shutdown()

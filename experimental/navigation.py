@@ -2,6 +2,7 @@
 
 import random
 import tachikoma
+import time
 
 def bump_navigation(robot):
     while True:
