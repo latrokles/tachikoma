@@ -92,7 +92,7 @@ class Tachikoma(object):
         '''
         direction = None
         now = time.time()
-        if now - self.last_seen > 2:
+        if now - self.last_seen > 0.5:
             self.last_direction = None
 
         # set the direction we will go based on the obstacle we went in
