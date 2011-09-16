@@ -77,6 +77,7 @@ class TeleoperationServer(object):
         self.turning_velocity = 0
 
         # set the horn
+        pygame.mixer.init()
         self.horn = pygame.mixer.Sound(HORN_SND)
 
         self.obstacle_data = {
