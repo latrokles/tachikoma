@@ -30,6 +30,9 @@ class Tachikoma(object):
         self.last_direction = None  # track the last direction we took
         self.last_seen      = 0     # track time of last obstacle
 
+    def set_velocities(self, linear, turning):
+        self.bot.go(linear, turning)
+
     def forward(self, speed):
         '''
         Move forward @ speed
@@ -85,6 +88,9 @@ class Tachikoma(object):
         elif sensors[create.RIGHT_BUMP] == 1 and sensors[create.LEFT_BUMP] == 1:
             self.curr_obstacle = FRONT
             self.last_seen = time.time()
+
+    def get_current_obstacle(self):
+        return self.curr_obstacle
 
     def avoid_collisions(self):
         '''

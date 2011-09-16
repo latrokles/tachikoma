@@ -31,10 +31,18 @@ MOVING_SPEED = 20 # cm/s
 TURN_SPEED   = 10 # deg/s
 SIZE  = WIDTH, HEIGHT = 480, 360
 UI_BG = '../data/img/background.png'
-FWD_ARROW = '../data/img/forward_arrow.jpg'
-BCK_ARROW = '../data/img/backward_arrow.jpg'
-LFT_ARROW = '../data/img/left_arrow.jpg'
-RGT_ARROW = '../data/img/right_arrow.jpg'
+FWD_ARROW = '../data/img/forward_arrow.png'
+BCK_ARROW = '../data/img/backward_arrow.png'
+LFT_ARROW = '../data/img/left_arrow.png'
+RGT_ARROW = '../data/img/right_arrow.png'
+OBSTACLE  = '../data/img/obstacle.png'
+HORN_IMG  = '../data/img/sound.png'
+HORN_SND  = '../data/audio/sound.wav'
+
+FRONT = 0
+BACK  = 1
+LEFT  = 2
+RIGHT = 3
 
 def load_image(img_file):
     '''
@@ -52,20 +60,82 @@ class TeleoperationServer(object):
     so that the operator is aware of the state of the robot.
     '''
     def __init__(self, port=8075):
+        # setup for incoming instructions
         self.addr  = '0.0.0.0'
         self.port  = port
-        #self.robot = tachikoma.Tachikoma(tachikoma.PORT)
+        self.robot = tachikoma.Tachikoma(tachikoma.PORT)
         self.socket_in = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket_in.bind((self.addr, self.port))
 
+        # setup for outgoing sensor data
+        self.client_addr = None
+        self.client_port = 8075
+        self.socket_out  = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        # a couple of vars to track robot state
+        self.moving_velocity  = 0
+        self.turning_velocity = 0
+
+        # set the horn
+        self.horn = pygame.mixer.Sound(HORN_SND)
+
+        self.obstacle_data = {
+                              FRONT: ['OFRT', 0],
+                              LEFT:  ['OLFT', 0],
+                              RIGHT: ['ORGT', 0],
+                             }
+
+    def read_sensor_data(self):
+        obstacle = self.robot.get_current_obstacle()
+        for sensor, data in self.obstacle_data.items():
+            if sensor == obstacle:
+                data[1] = 1
+            else:
+                data[1] = 0
+
+    def send_sensor_data(self):
+        if self.client_addr is not None:
+            for sensor, data in self.obstacle_data.items():
+                self.socket_out.send_to(
+                                        ':'.join(data),
+                                        (self.client_addr, self.client_port)
+                                       )
+
+
+
     def receive_command(self):
         command, addr = self.socket_in.recvfrom(1024)
-        print(command + "from ", addr)
+        if self.client_addr is None:
+            self.client_addr = addr[0]
+        self.handle_command(command)
+
+    def handle_command(self, command):
+        # handle all the moving stuff
+        if command == 'FWD':
+            self.moving_velocity = MOVING_SPEED
+        if command == 'BCK':
+            self.moving_velocity = -MOVING_SPEED
+        if command == 'LFT':
+            self.turning_velocity = TURN_SPEED
+        if command == 'RGT':
+            self.turning_velocity = -TURN_SPEED
+
+        if command == 'STPM':
+            self.moving_velocity  = 0
+        if command == 'STPT':
+            self.turning_velocity = 0
+        self.robot.set_velocities(self.moving_velocity, self.turning_velocity)
+
+        # handle honking
+        if command == 'HNK':
+            self.honk()
+
+    def honk(self):
+        self.horn.play()
 
     def run(self):
         while True:
             self.receive_command()
-
 
 class TeleoperationClient(object):
     '''
@@ -74,21 +144,31 @@ class TeleoperationClient(object):
     and battery data that it receives from the TeleoperationServer.
     '''
     def __init__(self, server_addr, server_port=8075):
+        # connection out to server
         self.server_addr = server_addr
         self.server_port = server_port
-        self.socket_out  = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket_out  = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # send instructions to server
+        # connection in from server
+        self.addr      = '0.0.0.0'
+        self.port      = 8075     # hmmm, we'll use the same one for now
+        self.socket_in = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # read data back from server
+        self.socket_in.bind((self.addr, self.port))
+
         # create our window and UI stuff
         self.window      = pygame.display.set_mode(SIZE)
         self.background  = pygame.image.load(UI_BG)
-        self.ui_elements = {
-                           'FWD':(load_image(FWD_ARROW), ((WIDTH/2) - 50, 20)),
-                           'BCK':(load_image(BCK_ARROW), ((WIDTH/2) - 50, 120)),
-                           'LFT':(load_image(LFT_ARROW), (WIDTH - 120, 20)),
-                           'RGT':(load_image(RGT_ARROW), (20, 20)),
-                           'HNK':(load_image(RGT_ARROW), ((WIDTH/2) - 50, 180)),
-                           }
+        self.widgets = {
+                        'FWD':[load_image(FWD_ARROW), ((WIDTH/2) - 50, 20), 0],
+                        'BCK':[load_image(BCK_ARROW), ((WIDTH/2) - 50, 120), 0],
+                        'LFT':[load_image(LFT_ARROW), (WIDTH - 120, 20), 0],
+                        'RGT':[load_image(RGT_ARROW), (20, 20), 0],
+                        'HNK':[load_image(HORN_IMG), ((WIDTH/2) - 50, 180), 0],
+                        'OLFT':[load_image(OBSTACLE), (20, 20), 0],
+                        'ORGT':[load_image(OBSTACLE), (WIDTH - 120, 20), 0],
+                        'OFRT':[load_image(OBSTACLE), ((WIDTH/2) - 50, 20), 0],
+                       }
         pygame.display.set_caption('Teleoperation Client: ' + self.server_addr)
-        self.clear_ui()
+        self.display_ui()
 
     def process_event(self, event):
         '''
@@ -117,23 +197,47 @@ class TeleoperationClient(object):
         Sends the command over the network and updates UI
         '''
         self.socket_out.sendto(command, (self.server_addr, self.server_port))
-        if command[:3] == 'STP':
-            self.clear_ui()
+        if command == 'STPM':
+            self.widgets['FWD'][2] = 0
+            self.widgets['BCK'][2] = 0
+        elif command == 'STPT':
+            self.widgets['LFT'][2] = 0
+            self.widgets['RGT'][2] = 0
+        elif command == 'STPH':
+            self.widgets['HNK'][2] = 0
         else:
-            ui_element = self.ui_elements[command]
-            self.window.blit(ui_element[0], ui_element[1])
+            self.widgets[command][2] = 1
 
-    def clear_ui(self):
+    def receive_sensor_data(self):
         '''
-        Clears the UI indicators
+        Receive robot data from the TeleoperationServer.
+        '''
+        data, srv_addr = self.socket_in.recvfrom(1024)
+        if srv_addr[0] == self.server_addr:
+            self.handle_sensor_data(data)
+
+    def handle_sensor_data(self, sensor_data):
+        '''
+        Handle the sensor data received from TeleoperationServer
+        '''
+        sensor, value = sensor_data.split(':')
+        self.widgets[sensor][2] = int(value)
+
+    def display_ui(self):
+        '''
+        Displays UI widgets on the screen, based on their state
         '''
         self.window.blit(self.background, (0, 20))
+        for name, widget in self.widgets.items():
+            if widget[2]:
+                self.window.blit(widget[0], widget[1])
 
     def run(self):
         while True:
             # get events and process them accordingly
             for event in pygame.event.get():
                 self.process_event(event)
+            self.display_ui()
             pygame.display.flip()
 
 if __name__ == '__main__':
