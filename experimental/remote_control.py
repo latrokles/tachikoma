@@ -100,7 +100,7 @@ class TeleoperationServer(object):
     def send_sensor_data(self):
         if self.client_addr is not None:
             for sensor, data in self.obstacle_data.items():
-                self.socket_out.send_to(
+                self.socket_out.sendto(
                                         data[0] + ':' + str(data[1]),
                                         (self.client_addr, self.client_port)
                                        )
