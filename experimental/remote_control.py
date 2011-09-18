@@ -66,6 +66,7 @@ class TeleoperationServer(object):
         self.robot = tachikoma.Tachikoma(tachikoma.PORT)
         self.socket_in = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket_in.bind((self.addr, self.port))
+        self.socket_in.settimeout(0.2)
 
         # setup for outgoing sensor data
         self.client_addr = None
@@ -87,6 +88,7 @@ class TeleoperationServer(object):
                              }
 
     def read_sensor_data(self):
+        self.robot.check_collisions()
         obstacle = self.robot.get_current_obstacle()
         for sensor, data in self.obstacle_data.items():
             print 'SENSOR DATA: ', sensor, '--', data
@@ -99,15 +101,18 @@ class TeleoperationServer(object):
         if self.client_addr is not None:
             for sensor, data in self.obstacle_data.items():
                 self.socket_out.send_to(
-                                        ':'.join(data),
+                                        data[0] + ':' + str(data[1]),
                                         (self.client_addr, self.client_port)
                                        )
 
     def receive_command(self):
-        command, addr = self.socket_in.recvfrom(1024)
-        if self.client_addr is None:
-            self.client_addr = addr[0]
-        self.handle_command(command)
+        try:
+            command, addr = self.socket_in.recvfrom(1024)
+            if self.client_addr is None:
+                self.client_addr = addr[0]
+            self.handle_command(command)
+        except socket.timeout:
+            pass
 
     def handle_command(self, command):
         # handle all the moving stuff
@@ -155,6 +160,7 @@ class TeleoperationClient(object):
         self.port      = 8075     # hmmm, we'll use the same one for now
         self.socket_in = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # read data back from server
         self.socket_in.bind((self.addr, self.port))
+        self.socket_in.settimeout(0.10)
 
         # create our window and UI stuff
         self.window      = pygame.display.set_mode(SIZE)
@@ -214,9 +220,13 @@ class TeleoperationClient(object):
         '''
         Receive robot data from the TeleoperationServer.
         '''
-        data, srv_addr = self.socket_in.recvfrom(1024)
-        if srv_addr[0] == self.server_addr:
-            self.handle_sensor_data(data)
+        try:
+            data, srv_addr = self.socket_in.recvfrom(1024)
+            if srv_addr[0] == self.server_addr:
+                self.handle_sensor_data(data)
+        except socket.timeout:
+            pass
+            #print 'no sensor data'
 
     def handle_sensor_data(self, sensor_data):
         '''

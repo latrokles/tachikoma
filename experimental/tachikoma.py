@@ -88,6 +88,8 @@ class Tachikoma(object):
         elif sensors[create.RIGHT_BUMP] == 1 and sensors[create.LEFT_BUMP] == 1:
             self.curr_obstacle = FRONT
             self.last_seen = time.time()
+        else:
+            self.curr_obstacle = None
 
     def get_current_obstacle(self):
         return self.curr_obstacle
