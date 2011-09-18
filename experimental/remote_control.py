@@ -91,7 +91,7 @@ class TeleoperationServer(object):
         self.robot.check_collisions()
         obstacle = self.robot.get_current_obstacle()
         for sensor, data in self.obstacle_data.items():
-            print 'SENSOR DATA: ', sensor, '--', data
+            #print 'SENSOR DATA: ', sensor, '--', data
             if sensor == obstacle:
                 data[1] = 1
             else:
