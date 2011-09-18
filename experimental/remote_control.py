@@ -136,6 +136,8 @@ class TeleoperationServer(object):
     def run(self):
         while True:
             self.receive_command()
+            self.read_sensor_data()
+            self.send_sensor_data()
 
 class TeleoperationClient(object):
     '''
@@ -237,6 +239,7 @@ class TeleoperationClient(object):
             # get events and process them accordingly
             for event in pygame.event.get():
                 self.process_event(event)
+            self.receive_sensor_data()
             self.display_ui()
             pygame.display.flip()
 
