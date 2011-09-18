@@ -89,6 +89,7 @@ class TeleoperationServer(object):
     def read_sensor_data(self):
         obstacle = self.robot.get_current_obstacle()
         for sensor, data in self.obstacle_data.items():
+            print 'SENSOR DATA: ', sensor, '--', data
             if sensor == obstacle:
                 data[1] = 1
             else:
@@ -101,8 +102,6 @@ class TeleoperationServer(object):
                                         ':'.join(data),
                                         (self.client_addr, self.client_port)
                                        )
-
-
 
     def receive_command(self):
         command, addr = self.socket_in.recvfrom(1024)
