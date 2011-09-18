@@ -27,8 +27,8 @@ import pygame
 from pygame.locals import *
 
 ## -- SOME GLOBALS -- ##
-MOVING_SPEED = 20 # cm/s
-TURN_SPEED   = 10 # deg/s
+MOVING_SPEED = 40 # cm/s
+TURN_SPEED   = 30 # deg/s
 SIZE  = WIDTH, HEIGHT = 480, 360
 UI_BG = '../data/img/background.png'
 FWD_ARROW = '../data/img/forward_arrow.png'
